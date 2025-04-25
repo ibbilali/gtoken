@@ -3,7 +3,7 @@
 #
 # ----- Go Builder Image ------
 #
-FROM golang:1.17-alpine AS builder
+FROM golang:1.23-alpine AS builder
 
 # curl git bash
 RUN apk add --no-cache curl git bash make
@@ -33,7 +33,7 @@ RUN make
 #
 # ------ get latest CA certificates
 #
-FROM alpine:3.15 as certs
+FROM alpine:3.20 as certs
 RUN apk --update add ca-certificates
 # this is for debug only Alpine image
 COPY --from=build /go/src/gtoken/.bin/github.com/doitintl/gtoken /gtoken

@@ -9,7 +9,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/dgrijalva/jwt-go"
+	"github.com/golang-jwt/jwt/v5"
 	"google.golang.org/api/iamcredentials/v1"
 )
 
@@ -52,20 +52,27 @@ func (IDToken) Generate(ctx context.Context, serviceAccount string) (string, err
 
 func (IDToken) GetDuration(jwtToken string) (time.Duration, error) {
 	// parse JWT token
-	parser := jwt.Parser{UseJSONNumber: true, SkipClaimsValidation: true}
+	parser := jwt.NewParser(jwt.WithJSONNumber(), jwt.WithoutClaimsValidation())
 	token, _, err := parser.ParseUnverified(jwtToken, jwt.MapClaims{})
 	if err != nil {
 		return 0, fmt.Errorf("failed to parse jwtToken: %s", err.Error())
 	}
 	if claims, ok := token.Claims.(jwt.MapClaims); ok {
-		var unixTime int64
-		unixTime, err = claims["exp"].(json.Number).Int64()
-		if err != nil {
-			return 0, fmt.Errorf("failed to convert expire date: %s", err.Error())
+		// Get expiration time
+		var exp time.Time
+		if expClaim, exists := claims["exp"]; exists {
+			if expNum, ok := expClaim.(json.Number); ok {
+				unixTime, err := expNum.Int64()
+				if err != nil {
+					return 0, fmt.Errorf("failed to convert expire date: %s", err.Error())
+				}
+				exp = time.Unix(unixTime, 0)
+				return time.Until(exp), nil
+			}
 		}
-		return time.Until(time.Unix(unixTime, 0)), nil
+		return 0, fmt.Errorf("failed to extract expiration time from token")
 	}
-	return 0, fmt.Errorf("failed to get claims from ID token: %s", err.Error())
+	return 0, fmt.Errorf("failed to get claims from ID token")
 }
 
 func (IDToken) WriteToFile(token, fileName string) error {
